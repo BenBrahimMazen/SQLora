@@ -3,6 +3,7 @@
 **Fine-tuning a small open-source LLM for text-to-SQL with QLoRA — and evaluating it the honest way: every predicted query is executed against the real Spider database it was written for.**
 
 ![CI](https://github.com/BenBrahimMazen/SQLora/actions/workflows/ci.yml/badge.svg)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/BenBrahimMazen/SQLora/blob/main/notebooks/finetune_colab.ipynb)
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.2%2B-EE4C2C?logo=pytorch&logoColor=white)
 ![Transformers](https://img.shields.io/badge/transformers-4.44%2B-FFD21E?logo=huggingface&logoColor=black)
@@ -88,7 +89,7 @@ python scripts/download_spider.py    # real Spider: ~210 MB download, never comm
 python src/preprocessing.py          # → data/processed/{train,dev}.jsonl
 ```
 
-> `bitsandbytes` publishes no Windows wheels (marked Linux-only in `requirements.txt`), so **training runs on Colab/Kaggle** — upload this folder and use the same commands. Preprocessing, evaluation, tests, and the CPU-only GGUF demo work anywhere.
+> `bitsandbytes` publishes no Windows wheels (marked Linux-only in `requirements.txt`), so **training runs on Colab/Kaggle** — either upload this folder and use the same commands, or run [`notebooks/finetune_colab.ipynb`](notebooks/finetune_colab.ipynb), which drives the whole GPU phase (smoke tests → baselines → QLoRA → evaluation → artifact download) on a free T4. Preprocessing, evaluation, tests, and the CPU-only GGUF demo work anywhere.
 
 ## Reproduce the benchmark
 
@@ -173,6 +174,7 @@ training:
 ```
 text2sql-lora/
 ├── scripts/download_spider.py   # fetch real Spider (questions, SQL, databases)
+├── notebooks/finetune_colab.ipynb  # one-click GPU phase on a free Colab T4
 ├── src/
 │   ├── preprocessing.py         # schema serialization → instruction format
 │   ├── baseline_prompting.py    # zero/few-shot + fine-tuned inference
