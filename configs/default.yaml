@@ -1,0 +1,87 @@
+# Default configuration for text2sql-lora.
+#
+# Every entry-point script (train_qlora.py, baseline_prompting.py,
+# merge_and_quantize.py, evaluate.py, demo_app.py) accepts --config to point at
+# a YAML file plus CLI flags that override individual values — copy this file
+# per ablation (e.g. configs/lora_r8.yaml) rather than editing it in place.
+
+model:
+  # Base model: small enough for QLoRA on a single T4 (16 GB).
+  base_model: Qwen/Qwen2.5-Coder-3B-Instruct
+  # Optional LoRA adapter (for inference with a fine-tuned model, or merge).
+  adapter_path: null
+  # Inference backend for the demo app: "transformers" or "llama_cpp" (.gguf).
+  backend: transformers
+
+data:
+  raw_dir: data/spider            # written by scripts/download_spider.py
+  processed_dir: data/processed   # written by src/preprocessing.py
+  train_file: data/processed/train.jsonl
+  dev_file: data/processed/dev.jsonl
+  tables_json: data/spider/tables.json
+  db_dir: data/spider/database    # <db_id>/<db_id>.sqlite
+  # Truncate tokenized train/eval sequences to this length (schemas are long).
+  max_seq_length: 1024
+  # Held-out fraction of *train* used for val-loss logging (dev is the benchmark).
+  val_fraction: 0.02
+  seed: 42
+
+few_shot:
+  # k=0 → zero-shot. Exemplars are drawn once from train with the seed below
+  # and reused for every dev question (deterministic, comparable across runs).
+  k: 0
+  seed: 42
+
+generation:
+  max_new_tokens: 256
+  # null → greedy decoding (deterministic; recommended for benchmarking).
+  temperature: null
+  top_p: 0.95
+
+lora:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  # Default target modules cover all linear projections in Qwen2.5-style
+  # decoder layers; harmless extras are ignored for other architectures.
+  target_modules: [q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj]
+  bias: none
+
+training:
+  output_dir: outputs/qlora_run
+  num_train_epochs: 3
+  # T4-feasible: small per-device batch + gradient accumulation (effective 16).
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 2.0e-4
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  logging_steps: 10
+  eval_strategy: steps
+  eval_steps: 100
+  save_strategy: epoch
+  save_total_limit: 2
+  # T4 has no bf16 — fp16 + 4-bit compute dtype.
+  fp16: true
+  optim: paged_adamw_8bit
+  gradient_checkpointing: true
+  # If set (e.g. "<|im_start|>assistant\n" for Qwen2.5), the loss is computed
+  # on the SQL completion only. null → loss on the full sequence (safest default
+  # across tokenizers; both work).
+  response_template: null
+  report_to: none
+  seed: 42
+
+execution:
+  # Per-query wall-clock budget against the SQLite DB.
+  timeout_s: 10.0
+  # false → compare result multisets (official-style, order-insensitive).
+  order_sensitive: false
+  # Hard cap on fetched rows per query (memory guard).
+  max_rows: 100000
+
+paths:
+  # Where evaluate.py writes the comparison CSV + chart.
+  results_dir: results

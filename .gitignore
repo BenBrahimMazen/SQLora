@@ -1,0 +1,28 @@
+# Data — fetched at runtime, never committed (data/README.md explains how)
+data/*
+!data/README.md
+
+# Training outputs, merged models, quantized artifacts
+outputs/
+models/
+*.gguf
+*.sqlite
+*.bin
+*.safetensors
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Secrets / environment
+.env
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
