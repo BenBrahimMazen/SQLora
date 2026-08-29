@@ -89,7 +89,7 @@ python scripts/download_spider.py    # real Spider: ~210 MB download, never comm
 python src/preprocessing.py          # → data/processed/{train,dev}.jsonl
 ```
 
-> `bitsandbytes` publishes no Windows wheels (marked Linux-only in `requirements.txt`), so **training runs on Colab/Kaggle** — either upload this folder and use the same commands, or run [`notebooks/finetune_colab.ipynb`](notebooks/finetune_colab.ipynb), which drives the whole GPU phase (smoke tests → baselines → QLoRA → evaluation → artifact download) on a free T4. Preprocessing, evaluation, tests, and the CPU-only GGUF demo work anywhere.
+> `bitsandbytes` publishes no Windows wheels (marked Linux-only in `requirements.txt`), so **training runs on Colab/Kaggle** — either upload this folder and use the same commands, or run [`notebooks/finetune_colab.ipynb`](notebooks/finetune_colab.ipynb), which drives the whole GPU phase (smoke tests → baselines → QLoRA → evaluation → artifact download) on a free Colab or Kaggle T4. Preprocessing, evaluation, tests, and the CPU-only GGUF demo work anywhere.
 
 ## Reproduce the benchmark
 
