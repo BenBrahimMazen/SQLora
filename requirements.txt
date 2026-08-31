@@ -1,7 +1,7 @@
 # text2sql-lora — Python dependencies
 #
 # GPU stages (QLoRA training, merging, inference) are intended for a free-tier
-# T4 GPU (Colab/Kaggle). Versions are pinned to bands known to work together;
+# T4 GPU (Colab). Versions are pinned to bands known to work together;
 # widening them may require small API changes in the training script.
 
 # --- Core: model loading, training, 4-bit quantization ---
@@ -11,7 +11,7 @@ datasets>=2.19.0,<4.0
 accelerate>=0.30.0
 peft>=0.11.0,<0.14
 trl>=0.9.0,<0.14
-bitsandbytes>=0.43.0 ; platform_system == "Linux"  # 4-bit quant; no Windows builds — train on Colab/Kaggle
+bitsandbytes>=0.43.0 ; platform_system == "Linux"  # 4-bit quant; no Windows builds — train on Colab
 huggingface_hub>=0.23.0
 
 # --- Data handling, evaluation, plotting ---
