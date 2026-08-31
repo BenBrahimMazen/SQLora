@@ -89,7 +89,15 @@ python scripts/download_spider.py    # real Spider: ~210 MB download, never comm
 python src/preprocessing.py          # → data/processed/{train,dev}.jsonl
 ```
 
-> `bitsandbytes` publishes no Windows wheels (marked Linux-only in `requirements.txt`), so **training runs on Colab/Kaggle** — either upload this folder and use the same commands, or run [`notebooks/finetune_colab.ipynb`](notebooks/finetune_colab.ipynb), which drives the whole GPU phase (smoke tests → baselines → QLoRA → evaluation → artifact download) on a free Colab or Kaggle T4. Preprocessing, evaluation, tests, and the CPU-only GGUF demo work anywhere.
+> `bitsandbytes` publishes no Windows wheels (marked Linux-only in `requirements.txt`), so **training runs on a hosted T4** — either upload this folder and use the same commands, run [`notebooks/finetune_colab.ipynb`](notebooks/finetune_colab.ipynb) (drives the whole GPU phase on a free Colab or Kaggle T4), or, when notebook quotas run out, drive it from the local CLI on [Modal](https://modal.com):
+>
+> ```bash
+> pip install modal && modal token new                       # one-time, browser login
+> modal run scripts/modal_pipeline.py --stage smoke          # then --stage all
+> modal volume get text2sql-lora-state qlora_artifacts.zip . # bring results home
+> ```
+>
+> Preprocessing, evaluation, tests, and the CPU-only GGUF demo work anywhere.
 
 ## Reproduce the benchmark
 
@@ -174,7 +182,8 @@ training:
 ```
 text2sql-lora/
 ├── scripts/download_spider.py   # fetch real Spider (questions, SQL, databases)
-├── notebooks/finetune_colab.ipynb  # one-click GPU phase on a free Colab T4
+├── notebooks/finetune_colab.ipynb  # one-click GPU phase on a free Colab/Kaggle T4
+├── scripts/modal_pipeline.py       # same GPU phase, driven from the CLI on Modal
 ├── src/
 │   ├── preprocessing.py         # schema serialization → instruction format
 │   ├── baseline_prompting.py    # zero/few-shot + fine-tuned inference
