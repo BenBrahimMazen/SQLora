@@ -2,8 +2,16 @@
 data/*
 !data/README.md
 
-# Training outputs, merged models, quantized artifacts
-outputs/
+# Per-query predictions — kept local; the committed run evidence lives in results/
+preds/
+
+# Training outputs, merged models, quantized artifacts — except the small
+# run-provenance files re-included below (loss history, resolved config)
+outputs/*
+!outputs/qlora_run
+outputs/qlora_run/*
+!outputs/qlora_run/log_history.json
+!outputs/qlora_run/resolved_config.yaml
 models/
 *.gguf
 *.sqlite

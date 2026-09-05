@@ -201,17 +201,19 @@ The three modules the tests cover (`sql_normalization`, `execution_eval`, `prepr
 
 ## Results
 
-> To be filled from `results/summary.csv` after real training runs. No placeholder numbers.
+All 1,034 Spider dev questions, one run per model, greedy decoding. Per-query evidence (question, gold and predicted SQL, execution outcome) is committed under `results/`; the training loss history is at `outputs/qlora_run/log_history.json` (train 1.70 → 0.07, eval 0.204 → 0.101 over 1,280 steps).
 
 | Model | Exact Match | Execution Accuracy (overall) | Execution Accuracy (easy) | Execution Accuracy (medium) | Execution Accuracy (hard) | Execution Accuracy (extra hard) |
 |-------|-------------|------------------------------|---------------------------|-----------------------------|---------------------------|---------------------------------|
-| Qwen2.5-Coder-3B-Instruct (zero-shot) |  |  |  |  |  |  |
-| Qwen2.5-Coder-3B-Instruct (few-shot) |  |  |  |  |  |  |
-| + QLoRA fine-tuned |  |  |  |  |  |  |
+| Qwen2.5-Coder-3B-Instruct (zero-shot) | 27.7 | 62.1 | 70.2 | 64.8 | 59.2 | 50.5 |
+| Qwen2.5-Coder-3B-Instruct (few-shot) | 35.5 | 63.5 | 72.1 | 60.9 | 59.9 | 56.4 |
+| + QLoRA fine-tuned | 50.6 | 66.9 | 77.8 | 61.8 | 66.2 | 57.1 |
+
+Reading it: fine-tuning lifts execution accuracy on every tier except medium (62.1 → 66.9 overall) and nearly doubles exact match (27.7 → 50.6) — the model internalizes Spider's SQL dialect more than it gains new query ability. Few-shot prompting shows the same shape in miniature: +7.8 exact match, but only +1.4 execution accuracy over zero-shot.
 
 ## Roadmap
 
-- [ ] Baseline + QLoRA runs on free-tier GPU (Colab T4) → fill Results
+- [x] Baseline + QLoRA runs → Results filled from real runs (`results/summary.csv`)
 - [ ] Ablations: LoRA rank, epochs, few-shot k, completion-only vs full-sequence loss
 - [ ] GGUF deployment of the fine-tuned model for the CPU demo
 
@@ -219,4 +221,4 @@ The three modules the tests cover (`sql_normalization`, `execution_eval`, `prepr
 
 - **Spider** — Yale LILY, CC BY-SA 4.0. Questions/SQL via the [HuggingFace release](https://huggingface.co/datasets/xlangai/spider); SQLite databases and `tables.json` via the original release's packaging. ~10,181 questions, 166 databases.
 - **Qwen2.5-Coder-3B-Instruct** — Apache 2.0.
-- Nothing dataset-derived is committed to this repository; `scripts/download_spider.py` fetches and verifies it (all referenced `db_id`s resolve to database files).
+- The raw dataset is never committed — `scripts/download_spider.py` fetches and verifies it at runtime (all referenced `db_id`s resolve to database files). The only Spider text committed is the per-query evaluation evidence under `results/` (question + gold and predicted SQL for the 1,034 public dev questions), redistributed under the same CC BY-SA 4.0 terms.

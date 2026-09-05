@@ -1,0 +1,4 @@
+Model,Exact Match,Execution Accuracy (overall),Execution Accuracy (easy),Execution Accuracy (medium),Execution Accuracy (hard),Execution Accuracy (extra hard)
+baseline-zeroshot,27.7,62.1,70.2,64.8,59.2,50.5
+baseline-fewshot,35.5,63.5,72.1,60.9,59.9,56.4
+qlora,50.6,66.9,77.8,61.8,66.2,57.1

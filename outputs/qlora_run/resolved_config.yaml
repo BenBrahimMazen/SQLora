@@ -1,0 +1,61 @@
+model:
+  base_model: Qwen/Qwen2.5-Coder-3B-Instruct
+  adapter_path: null
+  backend: transformers
+data:
+  raw_dir: data/spider
+  processed_dir: data/processed
+  train_file: data/processed/train.jsonl
+  dev_file: data/processed/dev.jsonl
+  tables_json: data/spider/tables.json
+  db_dir: data/spider/database
+  max_seq_length: 1024
+  val_fraction: 0.02
+  seed: 42
+few_shot:
+  k: 0
+  seed: 42
+generation:
+  max_new_tokens: 256
+  temperature: null
+  top_p: 0.95
+lora:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+  bias: none
+training:
+  output_dir: outputs/qlora_run
+  num_train_epochs: 3
+  per_device_train_batch_size: 4
+  per_device_eval_batch_size: 4
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0002
+  lr_scheduler_type: cosine
+  warmup_ratio: 0.03
+  weight_decay: 0.0
+  logging_steps: 10
+  eval_strategy: steps
+  eval_steps: 100
+  save_strategy: epoch
+  save_total_limit: 2
+  fp16: true
+  optim: paged_adamw_8bit
+  gradient_checkpointing: true
+  response_template: null
+  report_to: none
+  seed: 42
+execution:
+  timeout_s: 10.0
+  order_sensitive: false
+  max_rows: 100000
+paths:
+  results_dir: results
