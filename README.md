@@ -206,15 +206,17 @@ All 1,034 Spider dev questions, one run per model, greedy decoding. Per-query ev
 | Model | Exact Match | Execution Accuracy (overall) | Execution Accuracy (easy) | Execution Accuracy (medium) | Execution Accuracy (hard) | Execution Accuracy (extra hard) |
 |-------|-------------|------------------------------|---------------------------|-----------------------------|---------------------------|---------------------------------|
 | Qwen2.5-Coder-3B-Instruct (zero-shot) | 27.7 | 62.1 | 70.2 | 64.8 | 59.2 | 50.5 |
-| Qwen2.5-Coder-3B-Instruct (few-shot) | 35.5 | 63.5 | 72.1 | 60.9 | 59.9 | 56.4 |
+| Qwen2.5-Coder-3B-Instruct (few-shot, k=1) | 38.1 | 62.8 | 72.4 | 62.2 | 59.2 | 52.4 |
+| Qwen2.5-Coder-3B-Instruct (few-shot, k=3) | 35.5 | 63.5 | 72.1 | 60.9 | 59.9 | 56.4 |
+| Qwen2.5-Coder-3B-Instruct (few-shot, k=5) | 39.4 | 63.8 | 71.3 | 62.7 | 63.7 | 54.9 |
 | + QLoRA fine-tuned | 50.6 | 66.9 | 77.8 | 61.8 | 66.2 | 57.1 |
 
-Reading it: fine-tuning lifts execution accuracy on every tier except medium (62.1 → 66.9 overall) and nearly doubles exact match (27.7 → 50.6) — the model internalizes Spider's SQL dialect more than it gains new query ability. Few-shot prompting shows the same shape in miniature: +7.8 exact match, but only +1.4 execution accuracy over zero-shot.
+Reading it: fine-tuning lifts execution accuracy on every tier except medium (62.1 → 66.9 overall) and nearly doubles exact match (27.7 → 50.6) — the model internalizes Spider's SQL dialect more than it gains new query ability. The few-shot sweep shows the same shape from the other side: a single exemplar already buys +10.4 exact match but only +0.7 execution accuracy, and five exemplars add little more (+1.7 execution accuracy over zero-shot in total) — exemplars teach the output format, not the databases. What does grow with k is query validity: malformed predictions fall from 157 (zero-shot) to 144 (k=5), and fine-tuning beats them all at 102.
 
 ## Roadmap
 
 - [x] Baseline + QLoRA runs → Results filled from real runs (`results/summary.csv`)
-- [ ] Ablations: LoRA rank, epochs, few-shot k, completion-only vs full-sequence loss
+- [ ] Ablations: LoRA rank, epochs, completion-only vs full-sequence loss (few-shot k sweep done — see Results)
 - [ ] GGUF deployment of the fine-tuned model for the CPU demo
 
 ## Data & licenses
