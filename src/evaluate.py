@@ -172,7 +172,8 @@ def make_chart(metrics: list[dict], gold_records: list[dict], path: Path,
     slot = 0.8 / n_models
     bar_w = slot * 0.9  # thin marks with a small surface gap between fills
 
-    fig, ax = plt.subplots(figsize=(8.5, 4.8), dpi=200)
+    fig_w = max(8.5, 6.3 + 0.7 * n_models)  # widen so per-bar value labels never collide
+    fig, ax = plt.subplots(figsize=(fig_w, 4.8), dpi=200)
     fig.patch.set_facecolor(SURFACE)
     ax.set_facecolor(SURFACE)
 

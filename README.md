@@ -136,7 +136,10 @@ Loss is logged every 10 steps and evaluated every 100; the full per-step history
 ```bash
 python src/train_qlora.py --config configs/lora_r8.yaml --output-dir outputs/r8
 python src/train_qlora.py --lora-r 32 --lora-alpha 64 --output-dir outputs/r32
+python src/train_qlora.py --response-template $'<|im_start|>assistant\n' --output-dir outputs/completion_only_run
 ```
+
+The `$'…'` form passes a **real newline** — the template must match the tokenized chat template exactly, or every example is skipped in the loss (uncommenting `training.response_template` in the YAML works too; YAML turns `\n` into a newline for you).
 
 ## Evaluation methodology
 
@@ -210,13 +213,14 @@ All 1,034 Spider dev questions, one run per model, greedy decoding. Per-query ev
 | Qwen2.5-Coder-3B-Instruct (few-shot, k=3) | 35.5 | 63.5 | 72.1 | 60.9 | 59.9 | 56.4 |
 | Qwen2.5-Coder-3B-Instruct (few-shot, k=5) | 39.4 | 63.8 | 71.3 | 62.7 | 63.7 | 54.9 |
 | + QLoRA fine-tuned | 50.6 | 66.9 | 77.8 | 61.8 | 66.2 | 57.1 |
+| + QLoRA fine-tuned (completion-only loss) | 58.6 | 74.9 | 85.6 | 76.4 | 75.2 | 58.9 |
 
-Reading it: fine-tuning lifts execution accuracy on every tier except medium (62.1 → 66.9 overall) and nearly doubles exact match (27.7 → 50.6) — the model internalizes Spider's SQL dialect more than it gains new query ability. The few-shot sweep shows the same shape from the other side: a single exemplar already buys +10.4 exact match but only +0.7 execution accuracy, and five exemplars add little more (+1.7 execution accuracy over zero-shot in total) — exemplars teach the output format, not the databases. What does grow with k is query validity: malformed predictions fall from 157 (zero-shot) to 144 (k=5), and fine-tuning beats them all at 102.
+Reading it: fine-tuning lifts execution accuracy on every tier except medium (62.1 → 66.9 overall) and nearly doubles exact match (27.7 → 50.6) — the model internalizes Spider's SQL dialect more than it gains new query ability. The few-shot sweep shows the same shape from the other side: a single exemplar already buys +10.4 exact match but only +0.7 execution accuracy, and five exemplars add little more (+1.7 execution accuracy over zero-shot in total) — exemplars teach the output format, not the databases. The one knob that moves execution accuracy substantially is loss masking: the same QLoRA recipe trained with completion-only loss (`training.response_template`) gains another +8.0 exact match and +8.0 execution accuracy (66.9 → 74.9), lifting medium from 61.8 to 76.4 and hard from 66.2 to 75.2. With schemas roughly an order of magnitude longer than the answers, full-sequence loss spends most of its gradient learning to recite schema text; masking the prompt points every optimization step at the SQL. Query validity tracks the same story — malformed predictions fall from 157 (zero-shot) to 144 (k=5) to 102 (fine-tuned) to 56 (completion-only). Every row is one run, one seed, nothing tuned on dev.
 
 ## Roadmap
 
 - [x] Baseline + QLoRA runs → Results filled from real runs (`results/summary.csv`)
-- [ ] Ablations: LoRA rank, epochs, completion-only vs full-sequence loss (few-shot k sweep done — see Results)
+- [ ] Ablations: LoRA rank, epochs (few-shot k sweep and completion-only vs full-sequence loss done — see Results)
 - [ ] GGUF deployment of the fine-tuned model for the CPU demo
 
 ## Data & licenses
