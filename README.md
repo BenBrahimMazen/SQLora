@@ -215,6 +215,8 @@ All 1,034 Spider dev questions, one run per model, greedy decoding. Per-query ev
 | + QLoRA fine-tuned | 50.6 | 66.9 | 77.8 | 61.8 | 66.2 | 57.1 |
 | + QLoRA fine-tuned (completion-only loss) | 58.6 | 74.9 | 85.6 | 76.4 | 75.2 | 58.9 |
 
+![Execution accuracy by difficulty tier for the six evaluated model variants](results/accuracy_by_difficulty.png)
+
 Reading it: fine-tuning lifts execution accuracy on every tier except medium (62.1 → 66.9 overall) and nearly doubles exact match (27.7 → 50.6) — the model internalizes Spider's SQL dialect more than it gains new query ability. The few-shot sweep shows the same shape from the other side: a single exemplar already buys +10.4 exact match but only +0.7 execution accuracy, and five exemplars add little more (+1.7 execution accuracy over zero-shot in total) — exemplars teach the output format, not the databases. The one knob that moves execution accuracy substantially is loss masking: the same QLoRA recipe trained with completion-only loss (`training.response_template`) gains another +8.0 exact match and +8.0 execution accuracy (66.9 → 74.9), lifting medium from 61.8 to 76.4 and hard from 66.2 to 75.2. With schemas roughly an order of magnitude longer than the answers, full-sequence loss spends most of its gradient learning to recite schema text; masking the prompt points every optimization step at the SQL. Query validity tracks the same story — malformed predictions fall from 157 (zero-shot) to 144 (k=5) to 102 (fine-tuned) to 56 (completion-only). Every row is one run, one seed, nothing tuned on dev.
 
 ## Roadmap
