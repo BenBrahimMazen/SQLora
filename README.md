@@ -233,12 +233,6 @@ Reading it: fine-tuning lifts execution accuracy on every tier except medium (62
 
 How much of that is noise? Bootstrapping the committed per-query outcomes (10,000 resamples, `scripts/bootstrap_ci.py`) puts one run's overall execution accuracy within about ±3 points at 95% — the four prompt-based rows (62.1–63.8) sit inside a single interval. Paired resampling, drawing the same questions for both models, separates the real effects from the noise: QLoRA over zero-shot is +4.8 [+1.9, +7.6] and completion-only over full-sequence loss +7.9 [+5.4, +10.3], both excluding zero; the few-shot deltas (+0.7, +1.7) include it.
 
-## Roadmap
-
-- [x] Baseline + QLoRA runs → Results filled from real runs (`results/summary.csv`)
-- [x] Ablations: few-shot k sweep, completion-only vs full-sequence loss — see Results
-- [x] GGUF deployment of the fine-tuned model for the CPU demo
-
 ## Data & licenses
 
 - **Spider** — Yale LILY, CC BY-SA 4.0. Questions/SQL via the [HuggingFace release](https://huggingface.co/datasets/xlangai/spider); SQLite databases and `tables.json` via the original release's packaging. ~10,181 questions, 166 databases.
