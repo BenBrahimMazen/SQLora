@@ -16,10 +16,16 @@ needs is printed if it is missing:
     cd llama.cpp && pip install -r requirements.txt && cmake -B build && cmake --build build
 
 Only the merge step runs by default; add --gguf for the llama.cpp export and
---gguf-type q8_0 (say) for a quantized variant via llama-quantize.
+--gguf-type q4_k_m (say) for a quantized variant via llama-quantize. The
+quantize binary can come from a source build (llama.cpp/build/bin) or a
+prebuilt release zip (--llama-quantize / LLAMA_QUANTIZE_BIN). Conversion and
+quantization are skipped when their output file already exists, so re-running
+with a different --gguf-type costs only the new variant.
 
-Example:
-    python src/merge_and_quantize.py --adapter outputs/qlora_run/final_adapter --gguf
+Examples:
+    python src/merge_and_quantize.py --adapter outputs/completion_only_run/final_adapter --gguf
+    python src/merge_and_quantize.py --adapter outputs/completion_only_run/final_adapter \
+        --skip-merge --gguf --gguf-type q4_k_m --out-dir outputs/completion_only_run
 """
 
 from __future__ import annotations
@@ -52,8 +58,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gguf", action="store_true", help="Also export GGUF via llama.cpp")
     parser.add_argument("--gguf-type", default="f16",
                         help="GGUF variant: f16 (default), q8_0, q4_k_m, ...")
+    parser.add_argument("--skip-merge", action="store_true",
+                        help="Reuse the existing merged/ dir instead of re-merging")
     parser.add_argument("--llama-cpp-dir", default=None,
                         help="Path to a llama.cpp checkout (or set LLAMA_CPP_DIR)")
+    parser.add_argument("--llama-quantize", default=None,
+                        help="Path to a llama-quantize binary, e.g. from a prebuilt "
+                             "llama.cpp release zip (or set LLAMA_QUANTIZE_BIN)")
     return parser.parse_args()
 
 
@@ -99,8 +110,26 @@ def _find_llama_cpp(hint: str | None) -> Path | None:
     return None
 
 
+def _find_quantize(hint: str | None, llama_cpp: Path | None) -> Path | None:
+    """Locate a llama-quantize binary: explicit hint, env, or a llama.cpp build."""
+    candidates: list[Path] = []
+    if hint:
+        candidates.append(Path(hint))
+    env = os.environ.get("LLAMA_QUANTIZE_BIN")
+    if env:
+        candidates.append(Path(env))
+    if llama_cpp:
+        candidates.extend(llama_cpp.glob("build/bin/*quantize*"))   # source build
+        candidates.extend(llama_cpp.glob("*quantize*"))             # prebuilt release zip
+        candidates.extend(llama_cpp.glob("bin/*quantize*"))
+    for cand in candidates:
+        if cand.is_file() and cand.suffix in ("", ".exe"):
+            return cand
+    return None
+
+
 def export_gguf(merged_dir: Path, out_dir: Path, gguf_type: str,
-                llama_cpp: Path | None) -> None:
+                llama_cpp: Path | None, quantize_hint: str | None) -> None:
     """Convert the merged model to GGUF; optionally quantize with llama-quantize."""
     if llama_cpp is None:
         print(
@@ -114,26 +143,30 @@ def export_gguf(merged_dir: Path, out_dir: Path, gguf_type: str,
 
     out_dir.mkdir(parents=True, exist_ok=True)
     f16_path = out_dir / "model-f16.gguf"
-    print(f"Converting to GGUF (f16) -> {f16_path}")
-    subprocess.run(
-        [sys.executable, str(llama_cpp / "convert_hf_to_gguf.py"),
-         str(merged_dir), "--outfile", str(f16_path), "--outtype", "f16"],
-        check=True,
-    )
+    if f16_path.exists():
+        print(f"{f16_path} already exists — skipping conversion")
+    else:
+        print(f"Converting to GGUF (f16) -> {f16_path}")
+        subprocess.run(
+            [sys.executable, str(llama_cpp / "convert_hf_to_gguf.py"),
+             str(merged_dir), "--outfile", str(f16_path), "--outtype", "f16"],
+            check=True,
+        )
 
     if gguf_type and gguf_type.lower() not in ("f16", "f32"):
-        quant_bin = next(
-            (p for p in (llama_cpp / "build" / "bin").glob("*quantize*")
-             if p.is_file() and p.suffix == ""),
-            None,
-        )
+        quant_bin = _find_quantize(quantize_hint, llama_cpp)
         if quant_bin is None:
-            print(f"WARNING: llama-quantize binary not found under {llama_cpp / 'build' / 'bin'} "
-                  f"— skipping {gguf_type} quantization (f16 GGUF is ready).")
+            print("WARNING: llama-quantize binary not found (build it, or pass "
+                  f"--llama-quantize) — skipping {gguf_type} quantization "
+                  "(f16 GGUF is ready).")
             return
         quant_path = out_dir / f"model-{gguf_type}.gguf"
+        if quant_path.exists():
+            print(f"{quant_path} already exists — skipping quantization")
+            return
         print(f"Quantizing f16 -> {gguf_type} -> {quant_path}")
-        subprocess.run([str(quant_bin), str(f16_path), str(quant_path)], check=True)
+        subprocess.run([str(quant_bin), str(f16_path), str(quant_path), gguf_type],
+                       check=True)
 
 
 def main() -> None:
@@ -147,13 +180,18 @@ def main() -> None:
     out_dir = Path(args.out_dir) if args.out_dir else ROOT / "outputs" / f"merged_{adapter.stem}"
     merged_dir = out_dir / "merged"
 
-    merge_adapter(base_model, adapter, merged_dir)
+    if args.skip_merge:
+        if not (merged_dir / "config.json").exists():
+            raise SystemExit(f"--skip-merge set but no merged model found at {merged_dir}")
+        print(f"Reusing merged model at {merged_dir}")
+    else:
+        merge_adapter(base_model, adapter, merged_dir)
 
     if args.gguf:
         export_gguf(merged_dir, out_dir / "gguf", args.gguf_type,
-                    _find_llama_cpp(args.llama_cpp_dir))
+                    _find_llama_cpp(args.llama_cpp_dir), args.llama_quantize)
         print("\nGGUF ready — run the demo on CPU with llama.cpp, or:")
-        print(f"  llama-server -m {out_dir / 'gguf' / 'model-' + args.gguf_type + '.gguf'}")
+        print(f"  llama-server -m {out_dir / 'gguf' / f'model-{args.gguf_type}.gguf'}")
 
 
 if __name__ == "__main__":

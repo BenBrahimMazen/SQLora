@@ -3,10 +3,11 @@
 Pipeline position: the showpiece at the end of the pipeline. Selects one of
 the sample Spider databases, serializes its schema with the same code used in
 training (src/preprocessing.serialize_schema), generates SQL with the
-fine-tuned model (transformers, or llama.cpp with a GGUF from
-merge_and_quantize.py), executes it SAFELY against the real SQLite database
-(src/execution_eval.run_query: in-memory copy, reads-only, timeout) and shows
-the result table — a generated query can neither corrupt the DB nor hang the app.
+fine-tuned model (a llama-server holding a GGUF from merge_and_quantize.py,
+in-process llama.cpp, or transformers), executes it SAFELY against the real
+SQLite database (src/execution_eval.run_query: in-memory copy, reads-only,
+timeout) and shows the result table — a generated query can neither corrupt
+the DB nor hang the app.
 
 Run:
     streamlit run src/demo_app.py
@@ -99,6 +100,33 @@ def generate_sql_llama_cpp(gguf_path: str, schema_str: str, question: str,
     return out["choices"][0]["message"]["content"]
 
 
+def generate_sql_llama_server(server_url: str, schema_str: str, question: str,
+                              max_new_tokens: int, temperature: float,
+                              timeout_s: float = 120.0) -> str:
+    """GGUF inference via a running llama-server (OpenAI-compatible API).
+
+    No extra Python packages: stdlib urllib. Start the server with
+        llama-server -m <model>.gguf --port 8080
+    then point this demo at its URL.
+    """
+    import json
+    import urllib.request
+
+    payload = json.dumps({
+        "messages": [{"role": "system", "content": SYSTEM_PROMPT},
+                     {"role": "user", "content": build_user_message(schema_str, question)}],
+        "max_tokens": max_new_tokens,
+        "temperature": temperature,
+    }).encode()
+    req = urllib.request.Request(
+        server_url.rstrip("/") + "/v1/chat/completions",
+        data=payload, headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+        out = json.loads(resp.read())
+    return out["choices"][0]["message"]["content"]
+
+
 def main() -> None:
     cfg_path = ROOT / "configs" / "default.yaml"
     cfg = load_yaml(cfg_path) if cfg_path.exists() else {}
@@ -111,16 +139,36 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Model")
-        backend = st.selectbox("Backend", ["transformers", "llama_cpp (GGUF)"],
-                               help="transformers: HF model (+optional adapter). llama_cpp: GGUF from merge_and_quantize.py — CPU-friendly.")
-        model_name = st.text_input(
-            "Model (HF id or local path)",
-            value=get(cfg, "model.base_model", "Qwen/Qwen2.5-Coder-3B-Instruct"),
+        backend = st.selectbox(
+            "Backend",
+            ["llama-server (GGUF)", "transformers", "llama_cpp (GGUF)"],
+            help="llama-server: talk to a running llama-server with a GGUF from "
+                 "merge_and_quantize.py — CPU-friendly, no extra packages. "
+                 "transformers: HF model (+optional adapter). "
+                 "llama_cpp: load the GGUF in-process (needs the llama-cpp-python package).",
         )
-        adapter_path = st.text_input(
-            "LoRA adapter (optional)", value=get(cfg, "model.adapter_path") or "",
-            help="e.g. outputs/qlora_run/final_adapter — leave empty for the base model",
-        )
+        server_url = ""
+        gguf_path = ""
+        model_name = adapter_path = ""
+        if backend.startswith("llama-server"):
+            server_url = st.text_input(
+                "llama-server URL", value="http://127.0.0.1:8080",
+                help="Start it with: llama-server -m <model>.gguf --port 8080",
+            )
+        elif backend.startswith("llama_cpp"):
+            gguf_path = st.text_input(
+                "GGUF path",
+                value="", placeholder="outputs/completion_only_run/gguf/model-f16.gguf",
+            )
+        else:
+            model_name = st.text_input(
+                "Model (HF id or local path)",
+                value=get(cfg, "model.base_model", "Qwen/Qwen2.5-Coder-3B-Instruct"),
+            )
+            adapter_path = st.text_input(
+                "LoRA adapter (optional)", value=get(cfg, "model.adapter_path") or "",
+                help="e.g. outputs/completion_only_run/final_adapter — leave empty for the base model",
+            )
         max_new_tokens = st.number_input("Max new tokens", 64, 1024, 256, 32)
         temperature = st.slider("Temperature (0 = greedy)", 0.0, 1.5, 0.0, 0.05)
         st.header("Data")
@@ -173,8 +221,11 @@ def main() -> None:
         temp = temperature if temperature > 0 else None
         with st.spinner("Generating SQL ..."):
             try:
-                if backend.startswith("llama_cpp"):
-                    sql = generate_sql_llama_cpp(model_name, schema_str, question,
+                if backend.startswith("llama-server"):
+                    sql = generate_sql_llama_server(server_url, schema_str, question,
+                                                    int(max_new_tokens), float(temperature))
+                elif backend.startswith("llama_cpp"):
+                    sql = generate_sql_llama_cpp(gguf_path.strip(), schema_str, question,
                                                  int(max_new_tokens), float(temperature))
                 else:
                     sql = generate_sql_transformers(model_name, adapter_path.strip(),

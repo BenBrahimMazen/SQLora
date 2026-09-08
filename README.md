@@ -110,9 +110,16 @@ python src/evaluate.py \
     --pred qlora=preds/qlora.jsonl
 
 # 5. (optional) merge + GGUF for CPU inference, then the demo
-python src/merge_and_quantize.py --adapter outputs/qlora_run/final_adapter --gguf
-streamlit run src/demo_app.py
+python src/merge_and_quantize.py --adapter outputs/completion_only_run/final_adapter --gguf
+#    add "--skip-merge --gguf --gguf-type q4_k_m" for the 1.8 GB quantized variant
+#    of the 5.9 GB f16 file (needs a llama-quantize binary: build it or point
+#    --llama-quantize at one from a prebuilt llama.cpp release zip)
+
+llama-server -m outputs/completion_only_run/gguf/model-q4_k_m.gguf --port 8080
+streamlit run src/demo_app.py    # Backend: "llama-server (GGUF)"
 ```
+
+The GGUF path is how the demo runs on a machine with no GPU: `llama-server` serves the quantized model through an OpenAI-compatible API and the demo talks to it with the standard library alone — no `llama-cpp-python` build required. Smoke-tested on CPU (Ryzen, 16 GB RAM): 6/6 execution matches on a six-question dev sample, 3–16 s per query after warm-up.
 
 Smoke-test before the full runs: `--limit 20` on inference, `--max-steps 10` on training.
 
@@ -223,7 +230,7 @@ Reading it: fine-tuning lifts execution accuracy on every tier except medium (62
 
 - [x] Baseline + QLoRA runs → Results filled from real runs (`results/summary.csv`)
 - [ ] Ablations: LoRA rank, epochs (few-shot k sweep and completion-only vs full-sequence loss done — see Results)
-- [ ] GGUF deployment of the fine-tuned model for the CPU demo
+- [x] GGUF deployment of the fine-tuned model for the CPU demo
 
 ## Data & licenses
 
