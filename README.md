@@ -228,7 +228,7 @@ Reading it: fine-tuning lifts execution accuracy on every tier except medium (62
 ## Roadmap
 
 - [x] Baseline + QLoRA runs → Results filled from real runs (`results/summary.csv`)
-- [ ] Ablations: epochs (few-shot k sweep and completion-only vs full-sequence loss done — see Results)
+- [x] Ablations: few-shot k sweep, completion-only vs full-sequence loss — see Results
 - [x] GGUF deployment of the fine-tuned model for the CPU demo
 
 ## Data & licenses
