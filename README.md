@@ -141,8 +141,7 @@ Loss is logged every 10 steps and evaluated every 100; the full per-step history
 **Ablations** are one file each — copy `configs/default.yaml` (or pass flags):
 
 ```bash
-python src/train_qlora.py --config configs/lora_r8.yaml --output-dir outputs/r8
-python src/train_qlora.py --lora-r 32 --lora-alpha 64 --output-dir outputs/r32
+python src/train_qlora.py --epochs 2 --output-dir outputs/epochs2
 python src/train_qlora.py --response-template $'<|im_start|>assistant\n' --output-dir outputs/completion_only_run
 ```
 
@@ -229,7 +228,7 @@ Reading it: fine-tuning lifts execution accuracy on every tier except medium (62
 ## Roadmap
 
 - [x] Baseline + QLoRA runs → Results filled from real runs (`results/summary.csv`)
-- [ ] Ablations: LoRA rank, epochs (few-shot k sweep and completion-only vs full-sequence loss done — see Results)
+- [ ] Ablations: epochs (few-shot k sweep and completion-only vs full-sequence loss done — see Results)
 - [x] GGUF deployment of the fine-tuned model for the CPU demo
 
 ## Data & licenses
