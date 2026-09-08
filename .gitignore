@@ -5,6 +5,9 @@ data/*
 # Per-query predictions — kept local; the committed run evidence lives in results/
 preds/
 
+# Local study notes — never part of the repo
+INTERVIEW_PREP.*
+
 # Training outputs, merged models, quantized artifacts — except the small
 # run-provenance files re-included below (loss history, resolved config)
 outputs/*
