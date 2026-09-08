@@ -18,6 +18,12 @@ A complete, reproducible pipeline — no mocked steps, no synthetic data:
 | **Primary metric** | Execution accuracy: predicted vs gold result sets on the real Spider SQLite databases |
 | **Data** | Public Spider release — 7,000 train / 1,034 dev questions across 166 databases, fetched at runtime |
 
+## Demo
+
+![Demo: a real Spider dev question about the concert_singer database answered by the fine-tuned model, quantized to a 1.8 GB GGUF and served on CPU — generated SQL on the left, its execution against the real database on the right](assets/demo.gif)
+
+`src/demo_app.py` against `llama-server` running the q4_k_m-quantized model on a CPU-only machine: generation and sandboxed execution in one loop, no GPU anywhere in the path.
+
 ## Highlights
 
 - **Execution-first evaluation, hardened.** Predicted SQL never touches a database file directly: each query runs against a read-only, in-memory copy of the database, behind an allowlist authorizer (reads only — no writes, DDL, `ATTACH`, or `PRAGMA`), with a wall-clock timeout enforced by an SQLite progress handler and a row-count cap. A malformed or hostile generated query is recorded as a failed example — never a crash, never a hang, never a corrupted database.
