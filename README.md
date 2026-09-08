@@ -23,7 +23,7 @@ A complete, reproducible pipeline — no mocked steps, no synthetic data:
 - **Execution-first evaluation, hardened.** Predicted SQL never touches a database file directly: each query runs against a read-only, in-memory copy of the database, behind an allowlist authorizer (reads only — no writes, DDL, `ATTACH`, or `PRAGMA`), with a wall-clock timeout enforced by an SQLite progress handler and a row-count cap. A malformed or hostile generated query is recorded as a failed example — never a crash, never a hang, never a corrupted database.
 - **One code path from raw dataset to GGUF.** Download → instruction formatting → baseline prompting → QLoRA training → adapter merge → GGUF export → live Streamlit demo over the real databases.
 - **Ablation-friendly by construction.** Every knob (model, LoRA `r`/`alpha`/target modules, LR, batch/accumulation, epochs, prompt-masking) lives in YAML with CLI overrides; each training run dumps its resolved config and full loss history next to the checkpoints, so any result can be traced to exactly the arguments that produced it.
-- **Tested where it counts.** 59 offline tests cover the SQL normalizer, the schema serializer, and the execution sandbox (denied writes, denied `ATTACH`, timeout aborts, row caps). CI runs them on every push with nothing but pytest — no GPU, no downloads.
+- **Tested where it counts.** 60 offline tests cover the SQL normalizer, the schema serializer, and the execution sandbox (denied writes, denied `ATTACH`, timeout aborts, row caps). CI runs them on every push with nothing but pytest — no GPU, no downloads.
 - **Methodology is documented, including its limits.** Difficulty tiers are a stated keyword-based approximation (the HF release ships no parsed-SQL labels); exact match uses a project-defined normalization. Both are described precisely below.
 
 ## Pipeline
@@ -193,7 +193,7 @@ text2sql-lora/
 │   ├── execution_eval.py        # sandboxed execution accuracy, per-tier breakdown
 │   ├── evaluate.py              # orchestration: CSV + grouped bar chart
 │   └── demo_app.py              # Streamlit demo over the real databases
-├── tests/                       # 59 offline tests (stdlib-only modules under test)
+├── tests/                       # 60 offline tests (stdlib-only modules under test)
 ├── configs/default.yaml         # every knob, YAML + CLI overridable
 └── .github/workflows/ci.yml     # offline suite on every push
 ```
@@ -203,7 +203,7 @@ Every module starts with a docstring explaining what it does and where it sits i
 ## Testing
 
 ```bash
-python -m pytest tests -q     # 59 passed — no network, no model, no GPU
+python -m pytest tests -q     # 60 passed — no network, no model, no GPU
 ```
 
 The three modules the tests cover (`sql_normalization`, `execution_eval`, `preprocessing`) import only the standard library by design, so CI stays a 30-second job.

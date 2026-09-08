@@ -40,6 +40,7 @@ import json
 import re
 import sqlite3
 import sys
+import threading
 import time
 from collections import OrderedDict, defaultdict
 from pathlib import Path
@@ -68,8 +69,20 @@ _FORBIDDEN_KEYWORDS_RE = re.compile(r"\b(attach|detach|pragma)\b", re.IGNORECASE
 _FENCE_RE = re.compile(r"^```[a-zA-Z0-9_-]*\s*|\s*```$", re.MULTILINE)
 
 # In-memory database copies cached across queries (dev reuses each DB ~6x).
+# Thread-local: sqlite3 connections refuse cross-thread use by default
+# (check_same_thread=True), and hosts like Streamlit rerun the script in a
+# fresh thread — a shared cache would hand thread A's connection to thread B
+# and crash on first use. One cache per thread keeps the evaluator's reuse
+# win while making every connection strictly single-thread again.
 _MEM_CACHE_MAX = 8
-_MEM_CACHE: "OrderedDict[str, sqlite3.Connection]" = OrderedDict()
+_THREAD_LOCAL = threading.local()
+
+
+def _mem_cache() -> "OrderedDict[str, sqlite3.Connection]":
+    cache = getattr(_THREAD_LOCAL, "cache", None)
+    if cache is None:
+        cache = _THREAD_LOCAL.cache = OrderedDict()
+    return cache
 
 
 def clean_prediction(text: str) -> str:
@@ -95,25 +108,29 @@ def _authorizer(action: int, *_args) -> int:
 def _memory_copy(db_path: Path) -> sqlite3.Connection:
     """Open a fresh in-memory copy of db_path (read-only source), LRU-cached."""
     key = str(db_path)
-    conn = _MEM_CACHE.get(key)
+    cache = _mem_cache()
+    conn = cache.get(key)
     if conn is not None:
-        _MEM_CACHE.move_to_end(key)
+        cache.move_to_end(key)
         return conn
-    while len(_MEM_CACHE) >= _MEM_CACHE_MAX:
-        _old_key, _old = _MEM_CACHE.popitem(last=False)
+    while len(cache) >= _MEM_CACHE_MAX:
+        _old_key, _old = cache.popitem(last=False)
         _old.close()
     src = sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True)
     dst = sqlite3.connect(":memory:")
     src.backup(dst)
     src.close()
-    _MEM_CACHE[key] = dst
+    cache[key] = dst
     return dst
 
 
 def _evict(db_path: Path) -> None:
-    conn = _MEM_CACHE.pop(str(db_path), None)
+    conn = _mem_cache().pop(str(db_path), None)
     if conn is not None:
-        conn.close()
+        try:
+            conn.close()
+        except sqlite3.Error:
+            pass  # recovery path: dropping the reference is enough
 
 
 def _canonical_value(v) -> str:

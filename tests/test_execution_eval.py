@@ -7,6 +7,7 @@ and order-(in)sensitive result comparison.
 """
 
 import sqlite3
+import threading
 
 import pytest
 
@@ -108,6 +109,26 @@ class TestRunQueryDefensive:
 
     def test_markdown_fences_stripped(self, demo_db):
         res = run_query(demo_db, "```sql\nSELECT count(*) FROM singer\n```;")
+        assert res["status"] == "ok"
+        assert res["rows"] == [(3,)]
+
+    def test_cached_copy_usable_from_another_thread(self, demo_db):
+        """Regression: Streamlit reruns its script in a fresh thread; a cached
+        in-memory connection must never leak across threads (sqlite3 refuses
+        cross-thread use with a ProgrammingError)."""
+        results = {}
+
+        def run_in_thread():
+            # Warms the cache with a connection owned by THIS thread.
+            results["warm"] = run_query(demo_db, "SELECT count(*) FROM singer")
+
+        t = threading.Thread(target=run_in_thread)
+        t.start()
+        t.join()
+        assert results["warm"]["status"] == "ok"
+
+        # Different thread, same database -> must not raise ProgrammingError.
+        res = run_query(demo_db, "SELECT count(*) FROM singer")
         assert res["status"] == "ok"
         assert res["rows"] == [(3,)]
 
